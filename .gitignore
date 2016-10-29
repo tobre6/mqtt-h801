@@ -1,0 +1,4 @@
+build
+dist
+version.h
+default_settings.h
