@@ -5,18 +5,18 @@
 
 boolean Settings::load() {
 
-  Serial.println("Loading settings");
+  Serial1.println("Loading settings");
 
   memset(&container, 0x00, sizeof(CONTAINER));
 
   if (!SPIFFS.begin()) {
-    Serial.println("Failed to load settings!");
+    Serial1.println("Failed to load settings!");
     return false;
   }
 
   File file = SPIFFS.open(SETTINGS_FILE, "r");
   if (!file) {
-    Serial.println("No settings file, formatting");
+    Serial1.println("No settings file, formatting");
     SPIFFS.format();
     return false;
   }
@@ -33,7 +33,7 @@ boolean Settings::load() {
 void Settings::save() {
   File file = SPIFFS.open(SETTINGS_FILE, "w");
   if (!file) {
-    Serial.println("Failed to save settings");
+    Serial1.println("Failed to save settings");
   }
   uint8_t *bytes = (uint8_t*)&container;
   for (int i = 0; i < sizeof(CONTAINER); i++) {

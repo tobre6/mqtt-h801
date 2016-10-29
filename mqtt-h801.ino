@@ -4,8 +4,23 @@
 #include "default_settings.h"
 #include "Webserver.h"
 #include "Settings.h"
+#include "Led.h"
 
 #define MQTT_PORT   1883
+
+
+// RGB FET
+#define RED_PIN    15
+#define GREEN_PIN  13
+#define BLUE_PIN   12
+
+
+// W FET
+#define W1_PIN     14
+#define W2_PIN     4
+
+#define GREEN_LEDPIN    5
+#define RED_LEDPIN      1
 
 #define CONNECTION_CHECK_INTERVAL 10 // In seconds
 
@@ -18,21 +33,42 @@ PubSubClient *mqttClient;
 Webserver *webserver;
 Settings *settings;
 unsigned long lastConnectionCheckTime = 0;
+long brightness = 0;
+boolean on = false;
+
+Led red(RED_PIN);
+Led green(GREEN_PIN);
+Led blue(BLUE_PIN);
+Led white(W1_PIN);
+Led white2(W2_PIN);
 
 bool connectToWifi();
 void connectToMqtt();
 void mqttCallback(const MQTT::Publish&);
-void turnOffBuzzer();
-void turnOnBuzzer();
+void turnOffLights();
+void turnOnLights();
+void setBrightness(int);
 void checkConnection();
 
 void setup() {
-  Serial.begin(115200);
+  Serial1.begin(115200);
+  Serial1.print("Starting up");
+
+  red.setup();
+  green.setup();
+  blue.setup();
+  white.setup();
+  white2.setup();
+
+  pinMode(GREEN_LEDPIN, OUTPUT);  
+  pinMode(RED_LEDPIN, OUTPUT);
+
+  digitalWrite(RED_LEDPIN, HIGH);
 
   settings = new Settings;
   webserver = new Webserver(settings);
   if (!settings->load()) {
-    Serial.println("Initializing settings");
+    Serial1.println("Initializing settings");
     #ifdef DEFAULT_SETTINGS
       settings->setName(NAME);
       settings->setWifiSSID(WIFI_SSID);
@@ -56,64 +92,100 @@ void loop() {
   if (millis () > lastConnectionCheckTime + 1000 * CONNECTION_CHECK_INTERVAL) {
     checkConnection();
   }
+
+  red.update();
+  green.update();
+  blue.update();
+  white.update();
+  white2.update();
 }
 
 bool connectToWifi() {
-  Serial.println("Connecting to Wifi");
+  Serial1.println("Connecting to Wifi");
   int retries = 10;
   WiFi.begin(settings->getWifiSSID().c_str(), settings->getWifiPassword().c_str());
   while ((WiFi.status() != WL_CONNECTED) && retries--) {
     delay(500);
-    Serial.print(" .");
+    Serial1.print(" .");
   }
 
   if (WiFi.status() == WL_CONNECTED) { 
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
+    Serial1.print("IP address: ");
+    Serial1.println(WiFi.localIP());
     return true;
   }
 
-  Serial.println("Failed to connect to Wifi");
+  Serial1.println("Failed to connect to Wifi");
   return false;
 }
 
 void connectToMqtt() {
-  Serial.println("Connecting to MQTT");
+  Serial1.println("Connecting to MQTT");
   int retries = 10;
 
   while (!mqttClient->connect(MQTT::Connect(settings->getName()).set_keepalive(90)) && retries--) {
-    Serial.print(" .");
+    Serial1.print(" .");
     delay(1000);
   }
 
   if(mqttClient->connected()) {
-    Serial.println("Connected to MQTT");
-    mqttClient->subscribe(settings->getMQTTTopic());
+    Serial1.println("Connected to MQTT");
+    mqttClient->subscribe(settings->getMQTTTopic() + "/switch");
+    mqttClient->subscribe(settings->getMQTTTopic() + "/brightness/set");
+
+    digitalWrite(RED_LEDPIN, LOW);
+    digitalWrite(RED_LEDPIN, HIGH);
   }
 }
 
 void mqttCallback(const MQTT::Publish& pub) {
-  Serial.print("MQTT message: ");
-  Serial.println(pub.payload_string());
+  Serial1.print("MQTT topic: ");
+  Serial1.println(pub.topic());
+  Serial1.print("MQTT message: ");
+  Serial1.println(pub.payload_string());
+
+  if (pub.topic() == settings->getMQTTTopic() + "/brightness/set") {
+    setBrightness(pub.payload_string().toInt());
+    return;
+  }
 
   if (pub.payload_string() == "on") {
-    turnOnBuzzer();
+    turnOnLights();
   }
   if (pub.payload_string() == "off") {
-    turnOffBuzzer();
+    turnOffLights();
   }
 
-  mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/status", pub.payload_string()).set_retain(0).set_qos(1));
+  mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/status", pub.payload_string()).set_retain(1).set_qos(1));
 }
 
-void turnOffBuzzer() {
-  Serial.println("Turning buzzer off");
-  //digitalWrite(settings->getRelayPin(), LOW);
+void turnOnLights() {
+  if (on) {
+    return;
+  }
+  Serial1.println("Turning lights on");
+  on = true;
+  white.set(brightness);
+  white2.set(brightness);
 }
 
-void turnOnBuzzer() {
-  Serial.println("Turning buzzer on");
-  //digitalWrite(settings->getRelayPin(), HIGH);
+void turnOffLights() {
+  if (!on) {
+    return;
+  }
+  Serial1.println("Turning lights off");
+  on = false;
+  white.set(0);
+  white2.set(0);
+}
+
+void setBrightness(int newBrightness) {
+  Serial1.println("Setting brigtness to " + String(newBrightness));
+  brightness = newBrightness;
+  white.set(brightness);
+  white2.set(brightness);
+
+  mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness", String(brightness)).set_retain(1).set_qos(1));
 }
 
 void checkConnection() {

@@ -1,11 +1,9 @@
 #!/bin/bash
 set -e
 
-#FLASH_SIZE=1M64
-
 if [ ! $FLASH_SIZE ]
 then
-    FLASH_SIZE=4M3M
+    FLASH_SIZE=1M64
 fi
 
 if [ ! -e "default_settings.h" ] && [ $(uname) == 'Darwin' ]

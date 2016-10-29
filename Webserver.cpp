@@ -12,7 +12,7 @@ const char compile_date[] = __DATE__ " " __TIME__;
 Webserver::Webserver(Settings* settings) {
   this->settings = settings;
   server = new ESP8266WebServer(80);
-  Serial.println(compile_date);
+  Serial1.println(compile_date);
 
   server->on("/", [&](){
 
@@ -34,7 +34,7 @@ Webserver::Webserver(Settings* settings) {
   });
 
   server->on("/ota", [&](){
-    Serial.println("Commence OTA");
+    Serial1.println("Commence OTA");
     this->server->sendHeader("Location", "/", true);
     this->server->send ( 302, "text/plain", "");
     ESPhttpUpdate.update("ota.clockwise.ee", 80, "/MQTT-H801.bin");
