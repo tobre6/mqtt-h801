@@ -35,6 +35,7 @@ Settings *settings;
 unsigned long lastConnectionCheckTime = 0;
 long brightness = 0;
 boolean on = false;
+boolean mqttInitialized = false;
 
 Led red(RED_PIN);
 Led green(GREEN_PIN);
@@ -134,7 +135,9 @@ void connectToMqtt() {
     mqttClient->subscribe(settings->getMQTTTopic() + "/brightness/set");
 
     digitalWrite(RED_LEDPIN, LOW);
-    digitalWrite(RED_LEDPIN, HIGH);
+    digitalWrite(GREEN_LEDPIN, HIGH);
+
+    mqttInitialized = true;
   }
 }
 
@@ -156,7 +159,9 @@ void mqttCallback(const MQTT::Publish& pub) {
     turnOffLights();
   }
 
-  mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/status", pub.payload_string()).set_retain(1).set_qos(1));
+  if (mqttInitialized) {
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/status", pub.payload_string()).set_retain(1).set_qos(1));
+  }
 }
 
 void turnOnLights() {
@@ -180,12 +185,14 @@ void turnOffLights() {
 }
 
 void setBrightness(int newBrightness) {
-  Serial1.println("Setting brigtness to " + String(newBrightness));
+  Serial1.println("Setting brightness to " + String(newBrightness));
   brightness = newBrightness;
   white.set(brightness);
   white2.set(brightness);
 
-  mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness", String(brightness)).set_retain(1).set_qos(1));
+  if (mqttInitialized) {
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness", String(brightness)).set_retain(1).set_qos(1));
+  }
 }
 
 void checkConnection() {
