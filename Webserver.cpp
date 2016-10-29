@@ -27,7 +27,6 @@ Webserver::Webserver(Settings* settings) {
     html += "Uptime: " + uptime() + "</p>";
     html += "<p class=\"lead\">MQTT Server: " + this->settings->getMQTTServer() + "<br/>";
     html += "MQTT Topic: " + this->settings->getMQTTTopic() + "<br/>";
-    html += "Relay Pin: " + String(this->settings->getRelayPin()) + "</p>";
     html += "<p><a href=\"ota\" class=\"btn btn-primary\"><i class=\"fa fa-refresh\" aria-hidden=\"true\"></i> Upgrade</a></p>";
     html += "</div></div></body></html>";
     
@@ -38,7 +37,7 @@ Webserver::Webserver(Settings* settings) {
     Serial.println("Commence OTA");
     this->server->sendHeader("Location", "/", true);
     this->server->send ( 302, "text/plain", "");
-    ESPhttpUpdate.update("ota.clockwise.ee", 80, "/MQTT-Switch." + String(FLASH_SIZE) + ".bin");
+    ESPhttpUpdate.update("ota.clockwise.ee", 80, "/MQTT-H801.bin");
   });
 
   server->begin();

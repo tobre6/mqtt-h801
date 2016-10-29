@@ -39,12 +39,9 @@ void setup() {
       settings->setWifiPassword(WIFI_PASS);
       settings->setMQTTServer(MQTT_SERVER);
       settings->setMQTTTopic(MQTT_TOPIC);
-      settings->setRelayPin(RELAY);
     #endif
     settings->save();
   }
-
-  pinMode(settings->getRelayPin(), OUTPUT);
 
   mqttClient = new PubSubClient(wifiClient, settings->getMQTTServer(), MQTT_PORT);
   mqttClient->set_callback(mqttCallback);
@@ -111,12 +108,12 @@ void mqttCallback(const MQTT::Publish& pub) {
 
 void turnOffBuzzer() {
   Serial.println("Turning buzzer off");
-  digitalWrite(settings->getRelayPin(), LOW);
+  //digitalWrite(settings->getRelayPin(), LOW);
 }
 
 void turnOnBuzzer() {
   Serial.println("Turning buzzer on");
-  digitalWrite(settings->getRelayPin(), HIGH);
+  //digitalWrite(settings->getRelayPin(), HIGH);
 }
 
 void checkConnection() {

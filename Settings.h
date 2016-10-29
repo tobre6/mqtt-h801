@@ -23,9 +23,6 @@ public:
   void setMQTTTopic(String);
   String getMQTTTopic();
 
-  void setRelayPin(int);
-  int getRelayPin();
-
 private:
 
   struct CONTAINER {
@@ -36,7 +33,6 @@ private:
     char mqttTopic[32];
     char mqttUsername[32]; // For future
     char mqttPassword[32]; // For future
-    int relay;
   } container;
 };
 
