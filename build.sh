@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+write_config() {
+    echo "upload_port=\"$1\"" > .conf
+}
+
 if [ ! $FLASH_SIZE ]
 then
     FLASH_SIZE=1M64
@@ -26,6 +30,24 @@ then
     echo "#define MQTT_SERVER \"$mqtt_server\"" >> default_settings.h
     echo "#define MQTT_TOPIC \"$mqtt_topic\"" >> default_settings.h
 fi
+
+if [ ! -e ".conf" ]
+then
+    printf "Upload port: "
+    read upload_port
+
+    write_config $upload_port
+else
+    source .conf
+    printf "Upload port is $upload_port [enter to use the same]: "
+    read -e new_upload_port
+    if [ ! $new_upload_port == "" ]
+    then
+        write_config $new_upload_port
+        upload_port=$new_upload_port
+    fi
+fi
+
 
 VERSION=$(git log --pretty=format:%h -n 1)
 echo "#define VERSION \"$VERSION\"" > version.h
@@ -91,7 +113,7 @@ fi
 cd makeEspArduino
 
 export SKETCH=mqtt-h801.ino
-export UPLOAD_PORT=/dev/cu.usbserial-A92HD3JZ
+export UPLOAD_PORT=$upload_port
 export LIBS="$ESP_ROOT/libraries/ESP8266WiFi/ $ESP_ROOT/libraries/ESP8266WebServer/ $ESP_ROOT/libraries/ESP8266HTTPClient/ $ESP_ROOT/libraries/ESP8266httpUpdate/ ../pubsubclient/src/"
 export FLASH_DEF=$FLASH_SIZE
 
