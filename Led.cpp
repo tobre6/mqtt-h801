@@ -17,19 +17,19 @@ void Led::setup() {
 }
 
 void Led::set(long newValue) {
-  value = newValue;
+  value = map(newValue, 0, 255, 0, 1024);
   int diff = abs(value - valueActual);
   if (diff > 0) {
-      delay = TRANSITION_TIME / diff;
+    delay = TRANSITION_TIME / diff;
   }
 }
 
 void Led::update() {
   if (millis() - time >= delay) {
     time = millis();
-    if(value != valueActual) {
-      if(valueActual > value) {
-          valueActual--;
+    if (value != valueActual) {
+      if (valueActual > value) {
+        valueActual--;
       }
       else {
         valueActual++;

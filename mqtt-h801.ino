@@ -5,6 +5,7 @@
 #include "Webserver.h"
 #include "Settings.h"
 #include "Led.h"
+#include "ColorConverter.h"
 
 #define MQTT_PORT   1883
 
@@ -33,15 +34,17 @@ PubSubClient *mqttClient;
 Webserver *webserver;
 Settings *settings;
 unsigned long lastConnectionCheckTime = 0;
-long brightness = 0;
+unsigned int brightness = 0;
+
 boolean on = false;
 boolean mqttInitialized = false;
 
 Led red(RED_PIN);
 Led green(GREEN_PIN);
 Led blue(BLUE_PIN);
-Led white(W1_PIN);
-Led white2(W2_PIN);
+//Led white1(W1_PIN);
+//Led white2(W2_PIN);
+RgbColor rgb = {0, 0, 0};
 
 bool connectToWifi();
 void connectToMqtt();
@@ -49,7 +52,10 @@ void mqttCallback(const MQTT::Publish&);
 void turnOffLights();
 void turnOnLights();
 void setBrightness(int);
+void setRgb(RgbColor rgbColor);
 void checkConnection();
+RgbColor strToRgb(String rgbString);
+String rgbToStr(RgbColor rgb);
 
 void setup() {
   Serial1.begin(115200);
@@ -58,8 +64,8 @@ void setup() {
   red.setup();
   green.setup();
   blue.setup();
-  white.setup();
-  white2.setup();
+  //white1.setup();
+  //white2.setup();
 
   pinMode(GREEN_LEDPIN, OUTPUT);  
   pinMode(RED_LEDPIN, OUTPUT);
@@ -97,8 +103,8 @@ void loop() {
   red.update();
   green.update();
   blue.update();
-  white.update();
-  white2.update();
+  //white1.update();
+  //white2.update();
 }
 
 bool connectToWifi() {
@@ -133,6 +139,7 @@ void connectToMqtt() {
     Serial1.println("Connected to MQTT");
     mqttClient->subscribe(settings->getMQTTTopic() + "/switch");
     mqttClient->subscribe(settings->getMQTTTopic() + "/brightness/set");
+    mqttClient->subscribe(settings->getMQTTTopic() + "/rgb/set");
 
     digitalWrite(RED_LEDPIN, LOW);
     digitalWrite(GREEN_LEDPIN, HIGH);
@@ -149,6 +156,13 @@ void mqttCallback(const MQTT::Publish& pub) {
 
   if (pub.topic() == settings->getMQTTTopic() + "/brightness/set") {
     setBrightness(pub.payload_string().toInt());
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness/status", pub.payload_string()).set_retain(1).set_qos(1));
+    return;
+  }
+
+  if (pub.topic() == settings->getMQTTTopic() + "/rgb/set") {
+    setRgb(strToRgb(pub.payload_string()));
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/rgb/status", pub.payload_string()).set_retain(1).set_qos(1));
     return;
   }
 
@@ -170,8 +184,9 @@ void turnOnLights() {
   }
   Serial1.println("Turning lights on");
   on = true;
-  white.set(brightness);
-  white2.set(brightness);
+  //white1.set(brightness);
+  //white2.set(brightness);
+  setRgb(rgb);
 }
 
 void turnOffLights() {
@@ -180,19 +195,50 @@ void turnOffLights() {
   }
   Serial1.println("Turning lights off");
   on = false;
-  white.set(0);
-  white2.set(0);
+  //white1.set(0);
+  //white2.set(0);
+  red.set(0);
+  green.set(0);
+  blue.set(0);
 }
 
 void setBrightness(int newBrightness) {
   Serial1.println("Setting brightness to " + String(newBrightness));
   brightness = newBrightness;
-  white.set(brightness);
-  white2.set(brightness);
+  //white1.set(brightness);
+  //white2.set(brightness);
+
+  HsvColor hsv = RgbToHsv(rgb);
+  hsv.v = newBrightness;
+  rgb = HsvToRgb(hsv);
+  
+  setRgb(rgb);
+}
+
+void setRgb(RgbColor rgbColor) {
+  rgb = rgbColor;
+  red.set(rgb.r);
+  green.set(rgb.g);
+  blue.set(rgb.b);
+
+  HsvColor hsv = RgbToHsv(rgb);
+  brightness = hsv.v;
 
   if (mqttInitialized) {
-    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness", String(brightness)).set_retain(1).set_qos(1));
-  }
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/brightness/status", String(brightness)).set_retain(1).set_qos(1));
+    mqttClient->publish(MQTT::Publish(settings->getMQTTTopic() + "/rgb/status", rgbToStr(rgb)).set_retain(1).set_qos(1));
+  }  
+}
+
+RgbColor strToRgb(String rgbString) {
+  int r, g, b = 0;
+  sscanf(rgbString.c_str(), "%d,%d,%d", &r, &g, &b);
+
+  return {r, g, b};
+}
+
+String rgbToStr(RgbColor rgb) {
+  return String(rgb.r) + "," + String(rgb.g) + "," + String(rgb.b);
 }
 
 void checkConnection() {
@@ -205,4 +251,3 @@ void checkConnection() {
 
   lastConnectionCheckTime = millis();
 }
-
